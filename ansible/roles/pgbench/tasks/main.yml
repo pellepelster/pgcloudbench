@@ -1,0 +1,42 @@
+---
+- name: Install apt prerequisites for the PGDG repository
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install the PGDG signing key
+  ansible.builtin.get_url:
+    url: "{{ pgbench_apt_key_url }}"
+    dest: /tmp/postgresql-archive-keyring.asc
+    mode: "0644"
+    force: false
+
+- name: Dearmor the PGDG signing key into the keyring
+  ansible.builtin.command:
+    cmd: "gpg --batch --yes --dearmor -o {{ pgbench_apt_keyring }} /tmp/postgresql-archive-keyring.asc"
+    creates: "{{ pgbench_apt_keyring }}"
+
+- name: Add the PGDG apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ pgbench_apt_repo }}"
+    filename: pgdg
+    state: present
+    update_cache: true
+
+- name: Install pgbench {{ pgbench_version }}
+  ansible.builtin.apt:
+    name: "{{ pgbench_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Stop and disable the PostgreSQL service (not needed on the pgbench host)
+  ansible.builtin.service:
+    name: postgresql
+    state: stopped
+    enabled: false

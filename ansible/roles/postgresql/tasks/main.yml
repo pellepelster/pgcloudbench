@@ -1,0 +1,117 @@
+---
+- name: Assert that the target is Debian
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == "Debian"
+    fail_msg: "This role only supports Debian-family systems (found {{ ansible_facts['os_family'] }})."
+
+- name: Install apt prerequisites for the PGDG repository
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - debconf-utils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install the PGDG signing key
+  ansible.builtin.get_url:
+    url: "{{ postgresql_apt_key_url }}"
+    dest: /tmp/postgresql-archive-keyring.asc
+    mode: "0644"
+    force: false
+
+- name: Dearmor the PGDG signing key into the keyring
+  ansible.builtin.command:
+    cmd: "gpg --batch --yes --dearmor -o {{ postgresql_apt_keyring }} /tmp/postgresql-archive-keyring.asc"
+    creates: "{{ postgresql_apt_keyring }}"
+
+- name: Add the PGDG apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ postgresql_apt_repo }}"
+    filename: pgdg
+    state: present
+    update_cache: true
+
+- name: Disable automatic creation of default cluster
+  ansible.builtin.debconf:
+    name: postgresql-common
+    question: postgresql-common/create_main_cluster
+    value: "false"
+    vtype: boolean
+
+- name: Install PostgreSQL {{ postgresql_version }}
+  ansible.builtin.apt:
+    name: "{{ postgresql_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create data directory
+  ansible.builtin.file:
+    path: "{{ postgresql_data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+
+- name: Create cluster at {{ postgresql_data_dir }}
+  ansible.builtin.command:
+    cmd: "pg_createcluster --datadir={{ postgresql_data_dir }} {{ postgresql_version }} main"
+    creates: "{{ postgresql_data_dir }}/PG_VERSION"
+
+- name: Create systemd drop-in directory for postgresql
+  ansible.builtin.file:
+    path: "/etc/systemd/system/postgresql@{{ postgresql_version }}-main.service.d"
+    state: directory
+    mode: "0755"
+
+- name: Set open file descriptor limit for postgresql service
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/postgresql@{{ postgresql_version }}-main.service.d/limits.conf"
+    content: |
+      [Service]
+      LimitNOFILE={{ postgresql_nofile_limit }}
+    mode: "0644"
+  register: nofile_limit
+
+- name: Reload systemd daemon to pick up limit change
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: nofile_limit.changed
+
+- name: Ensure the PostgreSQL service is running and enabled
+  ansible.builtin.service:
+    name: "postgresql@{{ postgresql_version }}-main"
+    state: "{{ postgresql_service_state }}"
+    enabled: "{{ postgresql_service_enabled }}"
+
+- name: Template postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart postgresql
+
+- name: Allow remote connections to the pgbench database
+  ansible.builtin.lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    line: "host {{ postgresql_pgbench_db }} all 0.0.0.0/0 trust"
+  notify: Restart postgresql
+
+- name: Flush handlers to apply any pending restart
+  ansible.builtin.meta: flush_handlers
+
+- name: Create pgbench database
+  ansible.builtin.command:
+    cmd: "createdb {{ postgresql_pgbench_db }}"
+  become_user: postgres
+  become_method: ansible.builtin.su
+  register: createdb_result
+  failed_when: createdb_result.rc != 0 and 'already exists' not in createdb_result.stderr
+  changed_when: createdb_result.rc == 0
+

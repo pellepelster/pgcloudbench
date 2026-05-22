@@ -1,0 +1,21 @@
+---
+pgbench:
+  scale: 1000
+  warmup:
+    clients: "16"
+    threads: 8
+    duration: 10
+  run:
+    #clients: "1,2,4,8,16,32,64,128,256"
+    clients: "64,128,256,512"
+    threads: 8
+    duration: 10
+testbeds:
+  - name: aws_small
+    terraform:
+      configuration: {}
+  - name: scaleway_start-9-m
+    database:
+      address: 62.210.121.22
+    terraform:
+        configuration: {}

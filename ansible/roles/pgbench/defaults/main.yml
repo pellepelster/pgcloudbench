@@ -1,0 +1,7 @@
+---
+pgbench_version: 18
+pgbench_apt_key_url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+pgbench_apt_keyring: /usr/share/keyrings/postgresql-archive-keyring.gpg
+pgbench_apt_repo: "deb [signed-by={{ pgbench_apt_keyring }}] http://apt.postgresql.org/pub/repos/apt {{ ansible_facts['distribution_release'] }}-pgdg main"
+# pgbench ships in the server package, not postgresql-client-<version>
+pgbench_package: "postgresql-{{ pgbench_version }}"

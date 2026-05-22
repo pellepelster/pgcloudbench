@@ -1,0 +1,26 @@
+---
+- name: Install PostgreSQL
+  hosts: postgresql
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for the server to accept SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - postgresql
+
+- name: Install pgbench
+  hosts: pgbench
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for the server to accept SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - pgbench

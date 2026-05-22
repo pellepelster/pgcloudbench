@@ -1,0 +1,54 @@
+[tools]
+terraform = "latest"
+ansible = "latest"
+pipx = "latest"
+python = "latest"
+
+[tasks."pgbench:initialize"]
+description = "Initialize pgbench schema for all testbeds, or a single one if provided as argument."
+dir = "{{ config_root }}"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+args=()
+[ -n "${1:-}" ] && args+=("$1")
+python3 bench_run.py initialize "${args[@]}"
+"""
+
+[tasks."pgbench:run"]
+description = "Run pgbench sweep for all testbeds, or a single one if provided as argument."
+dir = "{{ config_root }}"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+args=()
+[ -n "${1:-}" ] && args+=("$1")
+python3 bench_run.py run "${args[@]}"
+"""
+
+[tasks."pgbench:plot"]
+description = "Plot pgbench results for all testbeds, or a single one if provided as argument."
+dir = "{{ config_root }}"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+args=()
+[ -n "${1:-}" ] && args+=("$1")
+python3 bench_plot.py "${args[@]}"
+"""
+
+[tasks.provision]
+dir = "{{ config_root }}"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+export HCLOUD_TOKEN="$(pass solidblocks/hetzner/test/hcloud_api_token)"
+export AWS_ACCESS_KEY_ID="$(pass solidblocks/aws/admin/access_key_id)"
+export AWS_SECRET_ACCESS_KEY="$(pass solidblocks/aws/admin/secret_access_key)"
+export SCW_ACCESS_KEY="$(pass scaleway/sandbox/access_key_id)"
+export SCW_SECRET_KEY="$(pass scaleway/sandbox/secret_key)"
+export SCW_DEFAULT_PROJECT_ID="$(pass scaleway/sandbox/project_id)"
+args=()
+[ -n "${1:-}" ] && args+=("$1")
+python3 bench_deploy.py "${args[@]}"
+"""

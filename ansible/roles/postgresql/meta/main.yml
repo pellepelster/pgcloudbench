@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: postgresql
+  description: Installs PostgreSQL 18 from the PGDG apt repository on Debian.
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - database
+    - postgresql
+    - debian
+
+dependencies: []
