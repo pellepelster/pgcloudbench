@@ -13,6 +13,7 @@ postgresql_service_state: started
 
 postgresql_data_dir: /data/postgresql
 postgresql_listen_addresses: "*"
-postgresql_pgbench_db: pgbench
+postgresql_pgbench_db: pgcloudbench
 postgresql_configuration: {}
 postgresql_nofile_limit: 65536
+postgresql_pgbench_password: ""

@@ -3,3 +3,4 @@ __pycache__/
 .terraform
 terraform.tfstate*
 .terraform.lock*
+output

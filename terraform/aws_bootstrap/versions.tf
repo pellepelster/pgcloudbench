@@ -2,9 +2,9 @@ terraform {
   required_version = ">= 1.5"
 
   required_providers {
-    scaleway = {
-      source  = "scaleway/scaleway"
-      version = "~> 2.40"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
     local = {
       source  = "hashicorp/local"
@@ -15,4 +15,8 @@ terraform {
       version = "~> 3.5"
     }
   }
+}
+
+provider "aws" {
+  region = var.region
 }

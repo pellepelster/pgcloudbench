@@ -1,54 +1,119 @@
 [tools]
 terraform = "latest"
-ansible = "latest"
-pipx = "latest"
-python = "latest"
+ansible   = "latest"
+pipx      = "latest"
+python    = "latest"
 
-[tasks."pgbench:initialize"]
-description = "Initialize pgbench schema for all testbeds, or a single one if provided as argument."
+[tasks."pgbench:initialize:aws:db.m6g.2xlarge"]
 dir = "{{ config_root }}"
 run = """
-#!/usr/bin/env bash
-set -euo pipefail
-args=()
-[ -n "${1:-}" ] && args+=("$1")
-python3 bench_run.py initialize "${args[@]}"
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py initialize aws_db.m6g.2xlarge
 """
 
-[tasks."pgbench:run"]
-description = "Run pgbench sweep for all testbeds, or a single one if provided as argument."
+[tasks."pgbench:initialize:aws:db.m6gd.2xlarge"]
 dir = "{{ config_root }}"
 run = """
-#!/usr/bin/env bash
-set -euo pipefail
-args=()
-[ -n "${1:-}" ] && args+=("$1")
-python3 bench_run.py run "${args[@]}"
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py initialize aws_db.m6gd.2xlarge
+"""
+
+[tasks."pgbench:initialize:scaleway:start-9-m"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py initialize scaleway_start-9-m
+"""
+
+[tasks."pgbench:run:aws:db.m6g.2xlarge"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py run aws_db.m6g.2xlarge
+"""
+
+[tasks."pgbench:run:aws:db.m6gd.2xlarge"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py run aws_db.m6gd.2xlarge
+"""
+
+[tasks."pgbench:run:scaleway:start-9-m"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
+python3 pgcloudbench.py run scaleway_start-9-m
 """
 
 [tasks."pgbench:plot"]
-description = "Plot pgbench results for all testbeds, or a single one if provided as argument."
 dir = "{{ config_root }}"
 run = """
-#!/usr/bin/env bash
-set -euo pipefail
-args=()
-[ -n "${1:-}" ] && args+=("$1")
-python3 bench_plot.py "${args[@]}"
+#!/bin/env bash
+set -e
+
+
+python3 pgcloudbench.py plot
 """
 
-[tasks.provision]
+[tasks."provision:aws:db.m6g.2xlarge"]
 dir = "{{ config_root }}"
 run = """
-#!/usr/bin/env bash
-set -euo pipefail
-export HCLOUD_TOKEN="$(pass solidblocks/hetzner/test/hcloud_api_token)"
+#!/bin/env bash
+set -e
+
 export AWS_ACCESS_KEY_ID="$(pass solidblocks/aws/admin/access_key_id)"
 export AWS_SECRET_ACCESS_KEY="$(pass solidblocks/aws/admin/secret_access_key)"
+
+./pgcloudbench.py provision aws_db.m6g.2xlarge
+"""
+
+[tasks."provision:bootstrap:aws"]
+dir = "{{ config_root }}/terraform/aws_bootstrap"
+run = """
+#!/bin/env bash
+set -e
+
+export AWS_ACCESS_KEY_ID="$(pass solidblocks/aws/admin/access_key_id)"
+export AWS_SECRET_ACCESS_KEY="$(pass solidblocks/aws/admin/secret_access_key)"
+
+terraform init -upgrade
+terraform apply -auto-approve
+"""
+
+[tasks."provision:aws:db.m6gd.2xlarge"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
+export AWS_ACCESS_KEY_ID="$(pass solidblocks/aws/admin/access_key_id)"
+export AWS_SECRET_ACCESS_KEY="$(pass solidblocks/aws/admin/secret_access_key)"
+
+./pgcloudbench.py provision aws_db.m6gd.2xlarge
+"""
+
+[tasks."provision:scaleway:start-9-m"]
+dir = "{{ config_root }}"
+run = """
+#!/bin/env bash
+set -e
+
 export SCW_ACCESS_KEY="$(pass scaleway/sandbox/access_key_id)"
 export SCW_SECRET_KEY="$(pass scaleway/sandbox/secret_key)"
 export SCW_DEFAULT_PROJECT_ID="$(pass scaleway/sandbox/project_id)"
-args=()
-[ -n "${1:-}" ] && args+=("$1")
-python3 bench_deploy.py "${args[@]}"
+
+./pgcloudbench.py provision scaleway_start-9-m
 """

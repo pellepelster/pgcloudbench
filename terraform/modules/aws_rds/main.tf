@@ -1,46 +1,10 @@
-provider "aws" {
-  region = var.region
-}
-
-data "aws_ami" "debian13" {
-  most_recent = true
-  owners      = ["136693071363"]
-
-  filter {
-    name   = "name"
-    values = ["debian-13-amd64-*"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
-resource "aws_key_pair" "default" {
-  key_name   = "pgcloudbench"
-  public_key = file(pathexpand(var.ssh_public_key_path))
+locals {
+  name =  replace("pgcloudbench-${var.db_instance_class}", ".", "-")
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "pgcloudbench-ec2"
-  description = "pgbench EC2 instance"
+  name        = "${local.name}-ec2"
+
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -60,12 +24,10 @@ resource "aws_security_group" "ec2" {
 }
 
 resource "aws_security_group" "rds" {
-  name        = "pgcloudbench-rds"
-  description = "RDS PostgreSQL accessible from pgbench EC2 only"
+  name        = "${local.name}-rds"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "PostgreSQL from pgbench EC2"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -74,7 +36,7 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_subnet_group" "default" {
-  name       = "pgcloudbench"
+  name        = local.name
   subnet_ids = data.aws_subnets.default.ids
 }
 
@@ -84,14 +46,17 @@ resource "random_password" "rds" {
 }
 
 resource "aws_db_instance" "postgres" {
-  identifier        = "pgcloudbench"
+  identifier        = local.name
   engine            = "postgres"
   engine_version    = "18"
   instance_class    = var.db_instance_class
   allocated_storage = 1000
-  storage_type      = "gp2"
+  storage_type      = "io2"
+  iops = var.iops
 
-  db_name  = "pgbench"
+  apply_immediately = true
+
+  db_name  = "pgcloudbench"
   username = "postgres"
   password = random_password.rds.result
 
@@ -108,16 +73,17 @@ resource "aws_db_instance" "postgres" {
 resource "aws_instance" "pgbench" {
   ami                         = data.aws_ami.debian13.id
   instance_type               = var.instance_type
-  key_name                    = aws_key_pair.default.key_name
+  key_name                    = data.aws_key_pair.pgcloudbench.key_name
   vpc_security_group_ids      = [aws_security_group.ec2.id]
   associate_public_ip_address = true
 
   tags = {
-    Name = "pgcloudbench-pgbench"
+    "Name" = "${local.name}-pgbench"
   }
 }
 
 resource "local_file" "ansible_inventory" {
+  depends_on = [aws_instance.pgbench]
   filename        = "${var.output_path}/ansible_inventory"
   file_permission = "0644"
   content = templatefile("${path.module}/templates/inventory.tmpl", {

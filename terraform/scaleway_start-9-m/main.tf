@@ -28,6 +28,17 @@ resource "scaleway_instance_server" "pgbench" {
   depends_on = [scaleway_iam_ssh_key.default]
 }
 
+resource "random_password" "postgres" {
+  length  = 32
+  special = false
+}
+
+resource "local_file" "db_password" {
+  filename        = "${var.output_path}/db_password"
+  file_permission = "0600"
+  content         = random_password.postgres.result
+}
+
 resource "local_file" "ansible_inventory" {
   filename        = "${var.output_path}/ansible_inventory"
   file_permission = "0644"

@@ -100,7 +100,8 @@
 - name: Allow remote connections to the pgbench database
   ansible.builtin.lineinfile:
     path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
-    line: "host {{ postgresql_pgbench_db }} all 0.0.0.0/0 trust"
+    regexp: "^host\\s+{{ postgresql_pgbench_db }}\\s+all\\s+0\\.0\\.0\\.0/0"
+    line: "host {{ postgresql_pgbench_db }} all 0.0.0.0/0 scram-sha-256"
   notify: Restart postgresql
 
 - name: Flush handlers to apply any pending restart
@@ -114,4 +115,12 @@
   register: createdb_result
   failed_when: createdb_result.rc != 0 and 'already exists' not in createdb_result.stderr
   changed_when: createdb_result.rc == 0
+
+- name: Set password for postgres user
+  ansible.builtin.command:
+    cmd: "psql -c \"ALTER USER postgres PASSWORD '{{ postgresql_pgbench_password }}'\""
+  become_user: postgres
+  become_method: ansible.builtin.su
+  when: postgresql_pgbench_password != ""
+  no_log: true
 

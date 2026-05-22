@@ -1,21 +1,46 @@
 ---
 pgbench:
-  scale: 1000
+  scale: 25000
   warmup:
-    clients: "16"
-    threads: 8
-    duration: 10
+    clients: 128
+    threads: 32
+    duration: 120
   run:
-    #clients: "1,2,4,8,16,32,64,128,256"
-    clients: "64,128,256,512"
-    threads: 8
-    duration: 10
+    clients: "32,64,128,256,512,1024"
+    duration: 300
 testbeds:
-  - name: aws_small
+  - name: aws_db.m6gd.2xlarge
+    terraform:
+      configuration:
+        iops: 20000
+  - name: aws_db.m6g.2xlarge
+    terraform:
+      configuration:
+        iops: 20000
+  - name: scaleway_start-9-m
     terraform:
       configuration: {}
-  - name: scaleway_start-9-m
     database:
       address: 62.210.121.22
-    terraform:
-        configuration: {}
+      configuration:
+        max_connections: 1030
+        shared_buffers: 8GB
+        effective_cache_size: 24GB
+        maintenance_work_mem: 2GB
+        checkpoint_completion_target: 0.9
+        wal_buffers: 16MB
+        default_statistics_target: 100
+        random_page_cost: 1.1
+        effective_io_concurrency: 200
+        work_mem: 14407kB
+        huge_pages: try
+        jit: off
+        wal_compression: lz4
+        autovacuum_work_mem: 2GB
+        io_method: io_uring
+        min_wal_size: 1GB
+        max_wal_size: 4GB
+        max_worker_processes: 12
+        max_parallel_workers_per_gather: 4
+        max_parallel_workers: 12
+        max_parallel_maintenance_workers: 4
